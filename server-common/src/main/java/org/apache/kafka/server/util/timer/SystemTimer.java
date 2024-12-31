@@ -85,14 +85,20 @@ public class SystemTimer implements Timer {
     /**
      * Advances the clock if there is an expired bucket. If there isn't any expired bucket when called,
      * waits up to timeoutMs before giving up.
+     * 在有到期任务的时候，时间轮才向前推进
      */
     public boolean advanceClock(long timeoutMs) throws InterruptedException {
+        // 有到期的任务则取出，没有到期的任务则等待 timeoutMs
         TimerTaskList bucket = delayQueue.poll(timeoutMs, TimeUnit.MILLISECONDS);
         if (bucket != null) {
             writeLock.lock();
             try {
                 while (bucket != null) {
+                    // 推动时间轮向前，每个 bucket 都有一定的时间范围 [startTime , endTime)
+                    // 将时间轮的 currentTimeMs 向前推进到 bucket 的 startTime
                     timingWheel.advanceClock(bucket.getExpiration());
+                    // 只要任务的过期时间在 bucket 的[startTime , endTime ) 之间的任务就要执行
+                    // 所以 kafka 时间轮的精度为 1ms
                     bucket.flush(this::addTimerTaskEntry);
                     bucket = delayQueue.poll();
                 }
@@ -101,6 +107,7 @@ public class SystemTimer implements Timer {
             }
             return true;
         } else {
+            // 没有到期的任务
             return false;
         }
     }

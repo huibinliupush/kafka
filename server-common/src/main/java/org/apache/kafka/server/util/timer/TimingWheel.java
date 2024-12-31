@@ -121,6 +121,7 @@ public class TimingWheel {
         this.buckets = new TimerTaskList[wheelSize];
         this.interval = tickMs * wheelSize;
         // rounding down to multiple of tickMs
+        // 必须是 tickMs 的整数倍
         this.currentTimeMs = startMs - (startMs % tickMs);
 
         for (int i = 0; i < buckets.length; i++) {
@@ -146,7 +147,7 @@ public class TimingWheel {
         if (timerTaskEntry.cancelled()) {
             // Cancelled
             return false;
-        } else if (expiration < currentTimeMs + tickMs) {
+        } else if (expiration < currentTimeMs + tickMs) { // expiration < 过期 bucket 的 endTime
             // Already expired
             return false;
         } else if (expiration < currentTimeMs + interval) {
@@ -175,7 +176,11 @@ public class TimingWheel {
     }
 
     public void advanceClock(long timeMs) {
+        // 当前过期的 bucket 正是 currentTimeMs 对应的 bucket 那么就不继续推进 timeMs < currentTimeMs + tickMs (多层时间轮向前推进的核心)
+        // 否则时间轮继续向前推进
+        // 第一层时间轮的 currentTimeMs 向前推进了，但是对于第二层时间轮来说，timeMs < currentTimeMs(第二层） + tickMs(第二层）
         if (timeMs >= currentTimeMs + tickMs) {
+            // 将时间轮的时间推进到过期 bucket 的 startTime 位置
             currentTimeMs = timeMs - (timeMs % tickMs);
 
             // Try to advance the clock of the overflow wheel if present

@@ -115,6 +115,7 @@ class TimerTaskList implements Delayed {
             f.accept(head);
             head = root.next;
         }
+        // 重置 bucket 的 expiration，表示该 bucket 已经过期并且被处理完了
         expiration.set(-1L);
     }
 
